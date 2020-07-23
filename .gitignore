@@ -123,3 +123,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# pygame
+/pygame
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
