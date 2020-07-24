@@ -1,5 +1,7 @@
 """Handles keyboard & mouse inputs for pygame"""
 
+# TODO: add modded key support -- it has to be optional in a sense
+
 import pygame as pg
 import numpy as np
 
@@ -9,37 +11,32 @@ from collections import namedtuple
 
 KeyCombo = namedtuple("KeyCombo", ["key", "state"])
 # ModdedKeyCombo = namedtuple("ModdedKeyCombo", ["key", "mod", "state"])
-# TODO: Add modded key combinations
 
-KSTATE_HELD = "held"
+
 KSTATE_DOWN = "down"
 KSTATE_UP = "up"
 
 
 class KeyTrigger(ABC):
+
+    @abstractmethod
+    def bind(self, dispatcher, *args):
+        pass
+
+
+class KeyStateTrigger(KeyTrigger):
     """Base class/interface for objects that respond to key presses"""
 
     @abstractmethod
     def on_trigger(self, action):
         pass
 
-    @abstractmethod
-    def bind(self, dispatcher, *args):
-        """
-        Ease of use function for quickly binding actions to dispatcher
 
-        dispatcher: KeyDispatcher
-        bindings: dict : action -> keycombo
-        """
-
-        pass
-
-
-class Paddle(KeyTrigger):
+class Paddle(KeyStateTrigger):
     """
     Simulates a joystick with 8 directional settings
 
-    Actions: Lu, Ld, Ru, Rd, Uu, Ud, Du, Dd
+    Actions: L_on, L_on, R_on, R_on, U_on, U_on, Du, Dd
     """
 
     def __init__(self, norm_diag=True):
@@ -56,21 +53,21 @@ class Paddle(KeyTrigger):
 
     def on_trigger(self, action):
 
-        if action == "Lu":
+        if action == "L_off":
             self.L = False
-        elif action == "Ld":
+        elif action == "L_on":
             self.L = True
-        elif action == "Ru":
+        elif action == "R_off":
             self.R = False
-        elif action == "Rd":
+        elif action == "R_on":
             self.R = True
-        elif action == "Uu":
+        elif action == "U_off":
             self.U = False
-        elif action == "Ud":
+        elif action == "U_on":
             self.U = True
-        elif action == "Du":
+        elif action == "D_off":
             self.D = False
-        elif action == "Dd":
+        elif action == "D_on":
             self.D = True
 
     @property
@@ -106,7 +103,6 @@ class Paddle(KeyTrigger):
     @property
     def vector(self):
         return np.array((self.x, self.y))
-    
 
     def bind(self, dispatcher, left, right, up, down):
         """
@@ -118,14 +114,54 @@ class Paddle(KeyTrigger):
         The same modifier is applied to the whole paddle.
         """
 
-        dispatcher.bind(KeyCombo(left, KSTATE_UP), self, "Lu")
-        dispatcher.bind(KeyCombo(left, KSTATE_DOWN), self, "Ld")
-        dispatcher.bind(KeyCombo(right, KSTATE_UP), self, "Ru")
-        dispatcher.bind(KeyCombo(right, KSTATE_DOWN), self, "Rd")
-        dispatcher.bind(KeyCombo(up, KSTATE_UP), self, "Uu")
-        dispatcher.bind(KeyCombo(up, KSTATE_DOWN), self, "Ud")
-        dispatcher.bind(KeyCombo(down, KSTATE_UP), self, "Du")
-        dispatcher.bind(KeyCombo(down, KSTATE_DOWN), self, "Dd")
+        dispatcher.bind(KeyCombo(left, KSTATE_UP), self, "L_off")
+        dispatcher.bind(KeyCombo(left, KSTATE_DOWN), self, "L_on")
+        dispatcher.bind(KeyCombo(right, KSTATE_UP), self, "R_off")
+        dispatcher.bind(KeyCombo(right, KSTATE_DOWN), self, "R_on")
+        dispatcher.bind(KeyCombo(up, KSTATE_UP), self, "U_off")
+        dispatcher.bind(KeyCombo(up, KSTATE_DOWN), self, "U_on")
+        dispatcher.bind(KeyCombo(down, KSTATE_UP), self, "D_off")
+        dispatcher.bind(KeyCombo(down, KSTATE_DOWN), self, "D_on")
+
+
+class Counter(KeyStateTrigger):
+
+    def __init__(self, init=0, mincount=None, maxcount=None):
+
+        if (
+            (maxcount is not None and init > maxcount) or
+            (mincount is not None and init < mincount)
+        ):
+            raise ValueError("init value is out of given bounds")
+
+        self.count = init
+        self.maxcount = maxcount
+        self.mincount = mincount
+
+    def on_trigger(self, action):
+
+        if action == "increment":
+
+            if self.maxcount is None or self.count < self.maxcount:
+                self.count += 1
+
+        elif action == "decrement":
+
+            if self.mincount is None or self.count > self.mincount:
+                self.count -= 1
+
+    def bind(self, dispatcher, increment, decrement):
+        """
+        Binds keys to modify counter
+
+        dispatcher: KeyDispatcher
+        left, right, up, down: pygame.key.K_ constants
+
+        The same modifier is applied to the whole paddle.
+        """
+
+        dispatcher.bind(KeyCombo(increment, KSTATE_DOWN), self, "increment")
+        dispatcher.bind(KeyCombo(decrement, KSTATE_DOWN), self, "decrement")
 
 
 class KeyDispatcher:
@@ -140,34 +176,26 @@ class KeyDispatcher:
 
     def __init__(self):
 
-        self.triggers = {}
-        self._held_triggers = []
+        self.keystatetriggers = {}
 
     def bind(self, keycombo, keytrigger, action):
 
-        self.triggers.setdefault(keycombo, [])
-        self.triggers[keycombo].append((keytrigger, action))
-
-        if keycombo.state == KSTATE_HELD:
-            self._held_triggers.append(keycombo)
+        self.keystatetriggers.setdefault(keycombo, [])
+        self.keystatetriggers[keycombo].append((keytrigger, action))
 
     def unbind(self, keycombo):
 
-        if keycombo in self.triggers:
-            del self.triggers[keycombo]
-
-        if keycombo in self._held_triggers:
-            self._held_triggers.remove(keycombo)
+        if keycombo in self.keystatetriggers:
+            del self.keystatetriggers[keycombo]
 
     def unbindall(self):
 
-        self.triggers = {}
-        self._held_triggers = []
+        self.keystatetriggers = {}
 
     def trigger(self, keycombo):
 
-        if keycombo in self.triggers:
-            for keytrigger, action in self.triggers[keycombo]:
+        if keycombo in self.keystatetriggers:
+            for keytrigger, action in self.keystatetriggers[keycombo]:
                 keytrigger.on_trigger(action)
 
     def dispatch(self, event):
@@ -178,11 +206,3 @@ class KeyDispatcher:
             keycombo = KeyCombo(event.key, KSTATE_UP)
 
         self.trigger(keycombo)
-
-    def trigger_held(self):
-
-        pressed = pg.key.get_pressed()
-
-        for keycombo in self._held_triggers:
-            if pressed[keycombo.key]:
-                self.trigger(keycombo)

@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 
-from inputs import Paddle, KeyDispatcher
+from inputs import Paddle, Counter, KeyDispatcher
 from classes import FloatRect
 from camera import Scene, SpriteCircle, SpriteGrid, SpriteRectangle, Camera
 
@@ -45,10 +45,12 @@ def main():
 
     keydispatcher = KeyDispatcher()
     paddle = Paddle()
+    counter = Counter(4, 1, 10)
 
     paddle.bind(keydispatcher, pg.K_a, pg.K_d, pg.K_w, pg.K_s)
+    counter.bind(keydispatcher, pg.K_1, pg.K_2)
 
-    v = 5.0
+    v = 1000.0
 
     running = True
     while running:
@@ -61,9 +63,8 @@ def main():
             if event.type == pg.KEYDOWN or event.type == pg.KEYUP:
                 keydispatcher.dispatch(event)
 
-        keydispatcher.trigger_held()
-
-        camera.center += paddle.vector * v * DT
+        camera.center += paddle.vector * v / SCALE * DT
+        camera.scale = SCALE / counter.count
 
         camera.draw()
         pygame.display.flip()
