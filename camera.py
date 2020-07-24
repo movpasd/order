@@ -62,8 +62,8 @@ class SpriteCircle(SpriteShape):
     def draw(self, screen, camera):
 
         pygame.draw.circle(screen, self.color,
-                           camera.to_pixels(self.pos),
-                           camera.to_pixels(self.radius),
+                           camera.px(self.pos),
+                           camera.px(self.radius),
                            self.thickness)
 
     def in_frame(self, framerect):
@@ -111,7 +111,7 @@ class SpriteRectangle(SpriteShape):
     def draw(self, screen, camera):
 
         pygame.draw.rect(screen, self.color,
-                         camera.to_pixels(self.get_rect()),
+                         camera.px(self.get_rect()),
                          self.thickness)
 
     def in_frame(self, framerect):
@@ -124,6 +124,12 @@ class SpriteRectangle(SpriteShape):
 
         return framerect.colliderect(self.get_rect())
 
+    @classmethod
+    def from_floatrect(cls, frect, **kw):
+
+        return SpriteRectangle(frect.centerx, frect.centery,
+                               frect.width, frect.height, **kw)
+
 
 class SpriteGrid(SpriteShape):
 
@@ -131,18 +137,35 @@ class SpriteGrid(SpriteShape):
                  thickness=1, boundrect=None, visible=True):
 
         super().__init__(x, y, color, thickness, visible)
+        self.spacing = spacing
         self.boundrect = boundrect
 
     def draw(self, screen, camera):
 
         framerect = camera.get_framerect()
+        brect = self.boundrect
         x0, y0 = self.pos
         sp = self.spacing
-        deltax = -(framerect.left - x0) % sp
 
-        for x in arange(deltax + framerect.left, framerect.right, spacing):
+        bottom = np.maximum(framerect.bottom, brect.bottom)
+        top = np.minimum(framerect.top, brect.top)
+        left = np.maximum(framerect.left, brect.left)
+        right = np.minimum(framerect.right, brect.right)
+
+        deltax = -(left - x0) % sp
+        deltay = -(bottom - y0) % sp
+
+        for x in np.arange(deltax + left, right, sp):
+
             pygame.draw.line(screen, self.color,
-                             (x, framerect.bottom), (x, framerect.top))
+                             camera.px(x, bottom),
+                             camera.px(x, top))
+
+        for y in np.arange(deltay + bottom, top, sp):
+
+            pygame.draw.line(screen, self.color,
+                             camera.px(left, y),
+                             camera.px(right, y))
 
     def in_frame(self, framerect):
 
@@ -152,7 +175,7 @@ class SpriteGrid(SpriteShape):
         if type(framerect) is Camera:
             return framerect
 
-        if boundrect is None:
+        if self.boundrect is None:
             return True
         else:
             return framerect.colliderect(self.boundrect)
@@ -179,20 +202,22 @@ class Camera:
         self.center = center
         self.scale = scale
 
-    def to_pixels(self, p):
+    def px(self, p, q=None):
         """Convert scene coords to pixel coords"""
+
+        if q is not None:
+            p = (p, q)
 
         t = type(p)
 
         if t is int or t is float:
-
             return int(p * self.scale)
 
         if t is FloatRect:
-
             return Rect(
-                self.to_pixels(p.topleft),
-                (self.to_pixels(p.width), self.to_pixels(p.height)))
+                self.px(p.topleft),
+                (self.px(p.width), self.px(p.height))
+            )
 
         p = np.array(p, dtype=float)
         p -= self.center
@@ -202,7 +227,7 @@ class Camera:
 
         return (int(r[0]), int(r[1]))
 
-    def to_pos(self, pixels):
+    def pos(self, pixels):
         """Convert pixel coords to scene coords"""
 
         t = type(pixels)

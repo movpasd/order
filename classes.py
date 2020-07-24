@@ -59,19 +59,19 @@ class FloatRect:
 
     @property
     def topleft(self):
-        return point(self.top, self.left)
+        return point(self.left, self.top)
 
     @property
     def topright(self):
-        return point(self.top, self.right)
+        return point(self.right, self.top)
 
     @property
     def bottomleft(self):
-        return point(self.bottom, self.left)
+        return point(self.left, self.bottom)
 
     @property
     def bottomright(self):
-        return point(self.bottom, self.right)
+        return point(self.right, self.bottom)
 
     def colliderect(self, other):
 

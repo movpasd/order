@@ -3,7 +3,8 @@ import os
 import sys
 import numpy as np
 
-from camera import Scene, SpriteCircle, SpriteRectangle, Camera
+from classes import FloatRect
+from camera import Scene, SpriteCircle, SpriteGrid, SpriteRectangle, Camera
 
 pygame.init()
 os.environ["SDL_VIDEO_CENTERED"] = "1"
@@ -12,10 +13,11 @@ os.environ["SDL_VIDEO_CENTERED"] = "1"
 # Rendering parameters
 
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 
 WINDOWSIZE = np.array([900, 600])
 ORIGIN = WINDOWSIZE / 2
-SCALE = 25.0
+SCALE = 100.0
 
 
 # Game parameters
@@ -29,20 +31,30 @@ def main():
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(WINDOWSIZE)
 
-    sprect = SpriteRectangle(0.5, 0.5, 1, 1, thickness=1)
-    scene = Scene(sprites=[sprect])
-    camera = Camera(screen, scene)
+    br = FloatRect(-5, 5, 10, 10)
+    sprect = SpriteRectangle(0, 0.5, 1, 1, color=RED)
+    origincircle = SpriteCircle(0, 0, 0.2, color=RED, thickness=1)
+    spgrid = SpriteGrid(0, 0, 1, boundrect=br)
+    sprect2 = SpriteRectangle.from_floatrect(br, color=BLUE, thickness=1)
+
+    scene = Scene(sprites=[sprect, spgrid, origincircle, sprect2])
+    camera = Camera(screen, scene, scale=SCALE)
+
+    v = np.array([0.5, 1])
 
     running = True
     while running:
 
-    	for event in pygame.event.get():
-    		if event.type == pygame.QUIT: sys.exit()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
 
-    	camera.draw()
-    	pygame.display.flip()
+        camera.draw()
+        pygame.display.flip()
 
-    	clock.tick(TICKRATE)
+        camera.center += v * DT
+
+        clock.tick(TICKRATE)
 
 
 if __name__ == "__main__":
