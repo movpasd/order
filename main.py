@@ -3,11 +3,14 @@ import os
 import sys
 import numpy as np
 
+from inputs import Paddle, KeyDispatcher
 from classes import FloatRect
 from camera import Scene, SpriteCircle, SpriteGrid, SpriteRectangle, Camera
 
 pygame.init()
 os.environ["SDL_VIDEO_CENTERED"] = "1"
+
+pg = pygame
 
 
 # Rendering parameters
@@ -32,7 +35,7 @@ def main():
     screen = pygame.display.set_mode(WINDOWSIZE)
 
     br = FloatRect(-5, 5, 10, 10)
-    sprect = SpriteRectangle(0, 0.5, 1, 1, color=RED)
+    sprect = SpriteRectangle(-1, 4, 2.2, 0.4, color=RED)
     origincircle = SpriteCircle(0, 0, 0.2, color=RED, thickness=1)
     spgrid = SpriteGrid(0, 0, 1, boundrect=br)
     sprect2 = SpriteRectangle.from_floatrect(br, color=BLUE, thickness=1)
@@ -40,19 +43,30 @@ def main():
     scene = Scene(sprites=[sprect, spgrid, origincircle, sprect2])
     camera = Camera(screen, scene, scale=SCALE)
 
-    v = np.array([0.5, 1])
+    keydispatcher = KeyDispatcher()
+    paddle = Paddle()
+
+    paddle.bind(keydispatcher, pg.K_a, pg.K_d, pg.K_w, pg.K_s)
+
+    v = 5.0
 
     running = True
     while running:
 
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
                 sys.exit()
 
+            if event.type == pg.KEYDOWN or event.type == pg.KEYUP:
+                keydispatcher.dispatch(event)
+
+        keydispatcher.trigger_held()
+
+        camera.center += paddle.vector * v * DT
+
         camera.draw()
         pygame.display.flip()
-
-        camera.center += v * DT
 
         clock.tick(TICKRATE)
 

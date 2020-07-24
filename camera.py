@@ -1,6 +1,10 @@
+"""Module for rendering onto pygame Surface objects"""
+
+from abc import ABC, abstractmethod
+
 import numpy as np
-import pygame
-from pygame import Surface, Rect
+import pygame.draw as pgdraw
+from pygame import Rect
 
 from classes import FloatRect
 
@@ -12,16 +16,18 @@ BLACK = (0, 0, 0)
 # Classes
 
 
-class Sprite:
+class Sprite(ABC):
 
-    def __init__(self, x=0, y=0, visible=True):
+    def __init__(self, x, y, visible=True):
 
         self.pos = np.array((float(x), float(y)))
         self.visible = visible
 
+    @abstractmethod
     def draw(self, screen, camera):
         pass
 
+    @abstractmethod
     def in_frame(self, rect):
         """Check for intersection with a FloatRect"""
         pass
@@ -45,7 +51,7 @@ class Sprite:
 
 class SpriteShape(Sprite):
 
-    def __init__(self, x=0, y=0, color=(255, 255, 255), thickness=0, visible=True):
+    def __init__(self, x, y, color=BLACK, thickness=0, visible=True):
 
         super().__init__(x, y, visible)
         self.color = color
@@ -61,7 +67,7 @@ class SpriteCircle(SpriteShape):
 
     def draw(self, screen, camera):
 
-        pygame.draw.circle(screen, self.color,
+        pgdraw.circle(screen, self.color,
                            camera.px(self.pos),
                            camera.px(self.radius),
                            self.thickness)
@@ -110,7 +116,7 @@ class SpriteRectangle(SpriteShape):
 
     def draw(self, screen, camera):
 
-        pygame.draw.rect(screen, self.color,
+        pgdraw.rect(screen, self.color,
                          camera.px(self.get_rect()),
                          self.thickness)
 
@@ -157,13 +163,13 @@ class SpriteGrid(SpriteShape):
 
         for x in np.arange(deltax + left, right, sp):
 
-            pygame.draw.line(screen, self.color,
+            pgdraw.line(screen, self.color,
                              camera.px(x, bottom),
                              camera.px(x, top))
 
         for y in np.arange(deltay + bottom, top, sp):
 
-            pygame.draw.line(screen, self.color,
+            pgdraw.line(screen, self.color,
                              camera.px(left, y),
                              camera.px(right, y))
 
@@ -179,6 +185,11 @@ class SpriteGrid(SpriteShape):
             return True
         else:
             return framerect.colliderect(self.boundrect)
+
+
+class SpriteImage(Sprite):
+
+    def __init__(self, x, y, visible=True): pass
 
 
 class Scene:
