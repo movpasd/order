@@ -6,7 +6,7 @@ import numpy as np
 import pygame.draw as pgdraw
 from pygame import Rect
 
-from classes import FloatRect
+from utils import FloatRect
 
 
 WHITE = (255, 255, 255)

@@ -3,8 +3,9 @@ import os
 import sys
 import numpy as np
 
+import collisions
 from inputs import Paddle, Counter, KeyDispatcher
-from classes import FloatRect
+from utils import FloatRect
 from camera import Scene, SpriteCircle, SpriteGrid, SpriteRectangle, Camera
 
 pygame.init()

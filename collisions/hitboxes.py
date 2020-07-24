@@ -1,19 +1,25 @@
-import collisions
-
+from abc import ABC
 
 # HITBOX TYPES
 
 
-class HitCircle(collisions.Hitbox):
-    
+class Hitbox(ABC):
+    pass
+
+
+class HitCircle(Hitbox):
+
     def __init__(self, center, radius):
 
         self.center = np.array(center, float)
         self.radius = float(radius)
 
 
-class HitRect(collisions.Hitbox):
-    pass
+class HitRect(Hitbox):
+
+    def __init__(self, center, width, height):
+
+        pass
 
 
 # COLLIDER FUNCTIONS
