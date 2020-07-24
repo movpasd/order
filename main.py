@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 
-from camera import Scene, Circle, Camera
+from camera import Scene, SpriteCircle, SpriteRectangle, Camera
 
 pygame.init()
 os.environ["SDL_VIDEO_CENTERED"] = "1"
@@ -13,14 +13,14 @@ os.environ["SDL_VIDEO_CENTERED"] = "1"
 
 RED = (255, 0, 0)
 
-WINDOWSIZE = np.array([1500, 1000])
+WINDOWSIZE = np.array([900, 600])
 ORIGIN = WINDOWSIZE / 2
 SCALE = 25.0
 
 
 # Game parameters
 
-TICKRATE = 1
+TICKRATE = 100
 DT = 1 / TICKRATE
 
 
@@ -29,8 +29,8 @@ def main():
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode(WINDOWSIZE)
 
-    circle1 = Circle(0, 0, 4)
-    scene = Scene(sprites=[circle1])
+    sprect = SpriteRectangle(0.5, 0.5, 1, 1, thickness=1)
+    scene = Scene(sprites=[sprect])
     camera = Camera(screen, scene)
 
     running = True
@@ -41,8 +41,6 @@ def main():
 
     	camera.draw()
     	pygame.display.flip()
-
-    	circle1.pos += np.array([0, 5])
 
     	clock.tick(TICKRATE)
 

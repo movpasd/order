@@ -2,61 +2,92 @@ import numpy as np
 import pygame
 from pygame import Surface, Rect
 
+from classes import FloatRect
+
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
 
 # Classes
 
+
 class Sprite:
 
-    def __init__(self, x=0, y=0):
+    def __init__(self, x=0, y=0, visible=True):
+
         self.pos = np.array((float(x), float(y)))
+        self.visible = visible
 
     def draw(self, screen, camera):
         pass
 
-    def intersects(self, rect):
-        """Check for intersection with a pygame Rect"""
+    def in_frame(self, rect):
+        """Check for intersection with a FloatRect"""
         pass
 
+    @property
+    def x(self):
+        return self.pos[0]
 
-class ShapeSprite(Sprite):
+    @property
+    def y(self):
+        return self.pos[1]
 
-    def __init__(self, x=0, y=0, color=(255, 255, 255)):
+    @x.setter
+    def x(self, val):
+        self.pos[0] = val
 
-        super().__init__(x, y)
+    @y.setter
+    def y(self, val):
+        self.pos[1] = val
+
+
+class SpriteShape(Sprite):
+
+    def __init__(self, x=0, y=0, color=(255, 255, 255), thickness=0, visible=True):
+
+        super().__init__(x, y, visible)
         self.color = color
+        self.thickness = thickness
 
 
-class Circle(ShapeSprite):
+class SpriteCircle(SpriteShape):
 
-    def __init__(self, x=0, y=0, radius=1.0, color=(255, 255, 255)):
+    def __init__(self, x, y, radius, color=BLACK, thickness=0, visible=True):
 
-        super().__init__(x, y, color)
+        super().__init__(x, y, color, thickness, visible)
         self.radius = float(radius)
 
     def draw(self, screen, camera):
 
-        cx, cy = camera.to_pixels(self.pos)
         pygame.draw.circle(screen, self.color,
                            camera.to_pixels(self.pos),
-                           camera.to_pixels(self.radius))
+                           camera.to_pixels(self.radius),
+                           self.thickness)
 
-    def intersects(self, rect):
+    def in_frame(self, framerect):
+
+        if not self.visible:
+            return False
+
+        if type(framerect) is Camera:
+            framerect = framerect.get_framerect()
 
         x, y = self.pos
         r = self.radius
 
-        halfwidth = rect.width / 2
-        halfheight = rect.height / 2
+        halfwidth = framerect.width / 2
+        halfheight = framerect.height / 2
 
         # Distance of circle to center of rectangle
-        print(rect.centery)
-        cdx = np.abs(x - rect.centerx)
-        cdy = np.abs(y - rect.centery)
+        cdx = np.abs(x - framerect.centerx)
+        cdy = np.abs(y - framerect.centery)
 
         if (cdx > halfwidth + r) or (cdy > halfheight + r):
             return False
 
-        if (cdx <= halfwidth) and (cdy <= halfheight):
+        if (cdx <= halfwidth) or (cdy <= halfheight):
             return True
 
         # Distance of circle to rectangle corner
@@ -64,9 +95,72 @@ class Circle(ShapeSprite):
         return sqcornerdist <= r**2
 
 
+class SpriteRectangle(SpriteShape):
+
+    def __init__(self, x, y, width, height, color=BLACK, thickness=0, visible=True):
+
+        super().__init__(x, y, color, thickness, visible)
+        self.width, self.height = float(width), float(height)
+
+    def get_rect(self):
+        """Get the bounding pygame Rect object"""
+        x, y = self.pos
+        return FloatRect(x - self.width / 2,
+                         y + self.height / 2, self.width, self.height)
+
+    def draw(self, screen, camera):
+
+        pygame.draw.rect(screen, self.color,
+                         camera.to_pixels(self.get_rect()),
+                         self.thickness)
+
+    def in_frame(self, framerect):
+
+        if not self.visible:
+            return False
+
+        if type(framerect) is Camera:
+            return framerect
+
+        return framerect.colliderect(self.get_rect())
+
+
+class SpriteGrid(SpriteShape):
+
+    def __init__(self, x, y, spacing, color=BLACK,
+                 thickness=1, boundrect=None, visible=True):
+
+        super().__init__(x, y, color, thickness, visible)
+        self.boundrect = boundrect
+
+    def draw(self, screen, camera):
+
+        framerect = camera.get_framerect()
+        x0, y0 = self.pos
+        sp = self.spacing
+        deltax = -(framerect.left - x0) % sp
+
+        for x in arange(deltax + framerect.left, framerect.right, spacing):
+            pygame.draw.line(screen, self.color,
+                             (x, framerect.bottom), (x, framerect.top))
+
+    def in_frame(self, framerect):
+
+        if not self.visible:
+            return False
+
+        if type(framerect) is Camera:
+            return framerect
+
+        if boundrect is None:
+            return True
+        else:
+            return framerect.colliderect(self.boundrect)
+
+
 class Scene:
 
-    def __init__(self, bg=(0, 0, 0), sprites=[]):
+    def __init__(self, bg=WHITE, sprites=[]):
 
         self.bg = bg
         self.sprites = list(sprites)
@@ -85,18 +179,26 @@ class Camera:
         self.center = center
         self.scale = scale
 
-    def to_pixels(self, pos):
+    def to_pixels(self, p):
         """Convert scene coords to pixel coords"""
 
-        t = type(pos)
+        t = type(p)
+
         if t is int or t is float:
-            return int(pos * self.scale)
 
-        pos = np.array(pos)
-        pos -= self.center
-        pos[1] = -pos[1]
+            return int(p * self.scale)
 
-        r = self.screensize / 2 + self.scale * pos
+        if t is FloatRect:
+
+            return Rect(
+                self.to_pixels(p.topleft),
+                (self.to_pixels(p.width), self.to_pixels(p.height)))
+
+        p = np.array(p, dtype=float)
+        p -= self.center
+        p[1] = -p[1]
+
+        r = self.screensize / 2 + self.scale * p
 
         return (int(r[0]), int(r[1]))
 
@@ -123,15 +225,15 @@ class Camera:
         self.screen.fill(self.scene.bg)
 
         for sprite in self.scene.sprites:
-            if sprite.intersects(self.get_rect()):
+            if sprite.in_frame(self.get_framerect()):
                 sprite.draw(self.screen, self)
 
-    def get_rect(self):
+    def get_framerect(self):
         """Returns scene coords of camera view"""
         width, height = self.to_length(self.screensize)
         left = self.center[0] - width / 2
-        top = self.center[1] - height / 2
-        return Rect(left, top, width, height)
+        top = self.center[1] + height / 2
+        return FloatRect(left, top, width, height)
 
     def zoom(self, factor):
         self.scale *= factor
