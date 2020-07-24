@@ -15,11 +15,7 @@ pg = pygame
 
 # Rendering parameters
 
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-
 WINDOWSIZE = np.array([900, 600])
-ORIGIN = WINDOWSIZE / 2
 SCALE = 100.0
 
 
@@ -29,29 +25,47 @@ TICKRATE = 100
 DT = 1 / TICKRATE
 
 
-def main():
+class GameState:
 
-    clock = pygame.time.Clock()
-    screen = pygame.display.set_mode(WINDOWSIZE)
+    def __init__(self, triggers, scene, camera):
+        pass
 
-    br = FloatRect(-5, 5, 10, 10)
-    sprect = SpriteRectangle(-1, 4, 2.2, 0.4, color=RED)
-    origincircle = SpriteCircle(0, 0, 0.2, color=RED, thickness=1)
-    spgrid = SpriteGrid(0, 0, 1, boundrect=br)
-    sprect2 = SpriteRectangle.from_floatrect(br, color=BLUE, thickness=1)
+    def update(self):
+        pass
 
-    scene = Scene(sprites=[sprect, spgrid, origincircle, sprect2])
+
+def init_camera(screen):
+
+    scene = Scene()
     camera = Camera(screen, scene, scale=SCALE)
 
+    return scene, camera
+
+
+def init_inputs():
+
     keydispatcher = KeyDispatcher()
-    paddle = Paddle()
-    counter = Counter(4, 1, 10)
+    triggers = []
 
-    paddle.bind(keydispatcher, pg.K_a, pg.K_d, pg.K_w, pg.K_s)
-    counter.bind(keydispatcher, pg.K_1, pg.K_2)
+    return keydispatcher, triggers
 
-    v = 1000.0
 
+def main():
+
+    # Prepare rendering
+    screen = pygame.display.set_mode(WINDOWSIZE)
+    scene, camera = init_camera(screen)
+
+    # Prepare inputs
+    keydispatcher, ks_triggers = init_inputs()
+
+    # Prepare game state
+    gamestate = GameState(ks_triggers, scene, camera)
+
+    # Prepare clock
+    clock = pygame.time.Clock()
+
+    # MAIN LOOP
     running = True
     while running:
 
@@ -63,8 +77,7 @@ def main():
             if event.type == pg.KEYDOWN or event.type == pg.KEYUP:
                 keydispatcher.dispatch(event)
 
-        camera.center += paddle.vector * v / SCALE * DT
-        camera.scale = SCALE / counter.count
+        gamestate.update()
 
         camera.draw()
         pygame.display.flip()
