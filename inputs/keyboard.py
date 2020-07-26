@@ -18,10 +18,7 @@ class ControllerButton:
         self._on_keypress_func = None
         self._on_keyrelease_func = None
 
-    def on_keypress(self, action, overwrite=False):
-
-        if type(action) is not str:
-            raise TypeError(f"action must be a str, not {type(action)}")
+    def set_keypress(self, overwrite=False):
 
         def _decorator(func):
 
@@ -40,10 +37,7 @@ class ControllerButton:
 
         return _decorator
 
-    def on_keyrelease(self, action, overwrite=False):
-
-        if type(action) is not str:
-            raise TypeError(f"action must be a str, not {type(action)}")
+    def set_keyrelease(self, overwrite=False):
 
         def _decorator(func):
 
