@@ -57,7 +57,7 @@ class Sprite(ABC):
 
 class SpriteShape(Sprite):
 
-    def __init__(self, x, y, color=BLACK, thickness=0, visible=True):
+    def __init__(self, x, y, color=BLACK, thickness=None, visible=True):
 
         super().__init__(x, y, visible)
         self.color = color
@@ -66,17 +66,24 @@ class SpriteShape(Sprite):
 
 class SpriteCircle(SpriteShape):
 
-    def __init__(self, x, y, radius, color=BLACK, thickness=0, visible=True):
+    def __init__(self, x, y, radius, color=BLACK, thickness=None, visible=True):
 
         super().__init__(x, y, color, thickness, visible)
         self.radius = float(radius)
 
     def draw(self, screen, camera):
 
+        if self.thickness is None:
+            px_thickness = 0
+        elif self.thickness == 0:
+            px_thickness = 1
+        else:
+            px_thickness = camera.px(self.thickness)
+
         pgdraw.circle(screen, self.color,
                       camera.px(self.pos),
                       camera.px(self.radius),
-                      self.thickness)
+                      px_thickness)
 
     def in_frame(self, framerect):
 
@@ -109,7 +116,7 @@ class SpriteCircle(SpriteShape):
 
 class SpriteRectangle(SpriteShape):
 
-    def __init__(self, x, y, width, height, color=BLACK, thickness=0, visible=True):
+    def __init__(self, x, y, width, height, color=BLACK, thickness=None, visible=True):
 
         super().__init__(x, y, color, thickness, visible)
         self.width, self.height = float(width), float(height)
@@ -122,9 +129,16 @@ class SpriteRectangle(SpriteShape):
 
     def draw(self, screen, camera):
 
+        if self.thickness is None:
+            px_thickness = 0
+        elif self.thickness == 0:
+            px_thickness = 1
+        else:
+            px_thickness = camera.px(self.thickness)
+
         pgdraw.rect(screen, self.color,
                     camera.px(self.get_rect()),
-                    self.thickness)
+                    px_thickness)
 
     def in_frame(self, framerect):
 
@@ -146,7 +160,7 @@ class SpriteRectangle(SpriteShape):
 class SpriteGrid(SpriteShape):
 
     def __init__(self, x, y, spacing, color=BLACK,
-                 thickness=1, boundrect=None, visible=True):
+                 thickness=None, boundrect=None, visible=True):
 
         super().__init__(x, y, color, thickness, visible)
         self.spacing = spacing
@@ -158,6 +172,11 @@ class SpriteGrid(SpriteShape):
         brect = self.boundrect
         x0, y0 = self.pos
         sp = self.spacing
+
+        if self.thickness is None:
+            px_thickness = 1
+        else:
+            px_thickness = camera.px(self.thickness)
 
         if brect is not None:
 
@@ -180,13 +199,15 @@ class SpriteGrid(SpriteShape):
 
             pgdraw.line(screen, self.color,
                         camera.px(x, bottom),
-                        camera.px(x, top))
+                        camera.px(x, top),
+                        px_thickness)
 
         for y in np.arange(deltay + bottom, top, sp):
 
             pgdraw.line(screen, self.color,
                         camera.px(left, y),
-                        camera.px(right, y))
+                        camera.px(right, y),
+                        px_thickness)
 
     def in_frame(self, framerect):
 
