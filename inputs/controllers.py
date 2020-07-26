@@ -22,35 +22,35 @@ class Paddle:
         self.east = False
 
     @north.set_keypress()
-    def keypress_north(self):
+    def _(self):
         self.north = True
 
     @north.set_keyrelease()
-    def keyrelease_north(self):
+    def _(self):
         self.north = False
 
     @south.set_keypress()
-    def keypress_south(self):
+    def _(self):
         self.south = True
 
     @south.set_keyrelease()
-    def keyrelease_south(self):
+    def _(self):
         self.south = False
 
     @east.set_keypress()
-    def keypress_east(self):
+    def _(self):
         self.east = True
 
     @east.set_keyrelease()
-    def keyrelease_east(self):
+    def _(self):
         self.east = False
 
     @west.set_keypress()
-    def keypress_west(self):
+    def _(self):
         self.west = True
 
     @west.set_keyrelease()
-    def keyrelease_west(self):
+    def _(self):
         self.west = False
 
     @property
@@ -90,3 +90,38 @@ class Paddle:
     @property
     def vector(self):
         return np.array((self.x, self.y))
+
+
+@controller
+class Counter:
+
+    increment = ControllerButton("increment")
+    decrement = ControllerButton("decrement")
+
+    def __init__(self, vinit=0, vmin=None, vmax=None):
+
+        self.vmin = vmin
+        self.vmax = vmax
+        self._count = vinit
+
+    @property
+    def count(self):
+        return self._count
+    
+    @increment.set_keypress()
+    def _(self):
+
+        if self.vmax is not None:
+            if self.count >= self.vmax:
+                return
+
+        self._count += 1
+    
+    @decrement.set_keypress()
+    def _(self):
+
+        if self.vmin is not None:
+            if self.count <= self.vmin:
+                return
+                
+        self._count -= 1
