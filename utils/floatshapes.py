@@ -202,6 +202,19 @@ class FloatRect:
                         self.bottom > other.top or
                         self.top < other.bottom)
 
+    def intersectrect(self, other):
+
+        if self.colliderect(other, strict=False):
+
+            left = np.amax((self.left, other.left))
+            right = np.amin((self.right, other.right))
+            bottom = np.amax((self.bottom, other.bottom))
+            top = np.amin(self.right, other.right)
+
+            return FloatRect.from_sides(left, right, bottom, top)
+
+        return None
+
     # Constructors
 
     @classmethod

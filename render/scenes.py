@@ -36,6 +36,7 @@ class Scene(render.Renderable):
         cam = self.camera
 
         self.sprites.sort(key=lambda s: s.z)
+
         blits = [(sprite.get_resized_surface(cam),
                   cam.px_point(sprite.get_bounding_rect().topleft))
                  for sprite in self.sprites
@@ -170,7 +171,6 @@ class Sprite:
             return rect
         else:
             return rect.rotated_bounds(self.angle)
-
 
     def get_resized_surface(self, camera, update=True):
 
