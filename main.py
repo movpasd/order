@@ -1,157 +1,122 @@
-import pygame
-import os
-import sys
+import pygame as pg
 import numpy as np
+from pathlib import Path
+import os
 
-import collisions
-from inputs.keyboard import KeyDispatcher
-from inputs.controllers import Paddle, Counter
-from utils import FloatRect
-from scenes.camera import Camera
-from scenes.sprites import Scene, SpriteCircle, SpriteGrid, SpriteRectangle
-
-pygame.init()
-os.environ["SDL_VIDEO_CENTERED"] = "1"
-
-pg = pygame
+import render
+from render.scenes import Scene, Camera, Sprite, SpriteCircle
+import inputs.keyboard
+import inputs.controllers
+import utils.floatshapes as fs
 
 
-# Rendering parameters
-
-WINDOWSIZE = np.array([900, 600])
-SCALE = 100.0
-
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)
-CYAN = (0, 255, 255)
-MAGENTA = (255, 0, 255)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
+os.environ['SDL_VIDEO_CENTERED'] = '1'
 
 
-# Game parameters
+WINDOWSIZE = (900, 600)
+BGC = (255, 255, 255)
 
-TICKRATE = 100
-DT = 1 / TICKRATE
+TPS = 100
+DT = 1 / TPS
 
-CAM_SPEED = 5.0
-ZOOM_DELTA = 10.0
-ZOOM_COUNTER_INIT = 0
-ZOOM_COUNTER_MIN = -5
-ZOOM_COUNTER_MAX = 5
-ZOOM_MULTIPLIER = 1.5
-INIT_SCALE = ZOOM_MULTIPLIER ** ZOOM_COUNTER_INIT * SCALE
+SCALE = 128.0
 
-BALL_SPEED = 5.0
+BINDS_PADDLE = {
+    "north": pg.K_w,
+    "west": pg.K_a,
+    "east": pg.K_d,
+    "south": pg.K_s,
+}
+
+BINDS_ZOOM = {
+    "increment": pg.K_p,
+    "decrement": pg.K_o,
+}
+
+BINDS_ROTATE = {
+    "increase": pg.K_PERIOD,
+    "decrease": pg.K_COMMA,
+}
+
+
+PATH_ASSETS = Path(__file__).parents[0] / "assets"
+
+
+SPEED = 5.
+ANGSPEED = 90
 
 
 class GameState:
 
-    def __init__(self, scene, camera, paddle, arrows, zoom):
+    def __init__(self, keydispatcher, rendermanager):
 
-        self.scene = scene
-        self.camera = camera
-        self.paddle = paddle
-        self.arrows = arrows
-        self.zoom = zoom
+        self.paddle = inputs.controllers.Paddle()
+        self.paddle.bind(keydispatcher, BINDS_PADDLE)
 
-        self.create_scene()
+        self.zoomcounter = inputs.controllers.Counter()
+        self.zoomcounter.bind(keydispatcher, BINDS_ZOOM)
 
-    def create_scene(self):
+        self.angleslider = inputs.controllers.Slider()
+        self.angleslider.bind(keydispatcher, BINDS_ROTATE)
 
-        scene = self.scene
-        scene.add_sprite(SpriteCircle(0, 0, 0.1, color=RED, thickness=0))
-        scene.add_sprite(SpriteGrid(0, 0, 1))
+        self.camera = Camera(WINDOWSIZE, scale=SCALE)
+        self.scene = Scene(self.camera, bg=BGC)
+        rendermanager.renderables.append(self.scene)
 
-        # Controllable ball
-        scene.add_sprite(SpriteCircle(0, 0, 0.1, color=RED))
+        smile = pg.image.load(str(PATH_ASSETS / "smiley.png"))
+        rect = fs.FloatRect.from_center(0.5, 0.5, 1, 1)
+        spr = Sprite(smile, rect)
 
-    def update(self, dt):
+        shrect = rect
+        shrect = shrect.shifted(0, -0.5)
+        shrect = shrect.xyscaled(0.9, 0.2)
 
-        self.camera.scale = ZOOM_MULTIPLIER ** self.zoom.count * SCALE
-        self.camera.center += CAM_SPEED * self.paddle.vector * dt
-        self.scene.sprites[-1].pos += BALL_SPEED * self.arrows.vector * dt
+        sh = SpriteCircle((0, 0, 0), shrect, alpha=64, z=-0.1)
 
+        self.scene.sprites.append(spr)
+        self.scene.sprites.append(sh)
 
-def init_camera(screen):
+        self.smile = spr
+        self.sh = sh
 
-    scene = Scene()
-    camera = Camera(screen, scene, scale=INIT_SCALE)
+    def tick(self, dt):
 
-    return scene, camera
+        self.smile.pos += self.paddle.vector * SPEED * dt
+        self.sh.pos = self.smile.pos + np.array((0, -0.5))
+        self.smile.angle += self.angleslider.value * ANGSPEED * dt
 
-
-def init_inputs():
-
-    keydispatcher = KeyDispatcher()
-
-    return keydispatcher
+        self.camera.scale = SCALE * 2 ** self.zoomcounter.count
 
 
 def main():
 
-    # Prepare rendering
-    screen = pygame.display.set_mode(WINDOWSIZE)
-    scene, camera = init_camera(screen)
+    pg.init()
+    screen = pg.display.set_mode(size=WINDOWSIZE)
 
-    # Prepare inputs
-    keydispatcher = init_inputs()
+    keydispatcher = inputs.keyboard.KeyDispatcher()
+    rendermanager = render.RenderManager(screen)
 
-    paddle_bindings = {
-        "north": pg.K_w,
-        "south": pg.K_s,
-        "east": pg.K_d,
-        "west": pg.K_a
-    }
+    gamestate = GameState(keydispatcher, rendermanager)
 
-    paddle = Paddle()
-    paddle.bind(keydispatcher, paddle_bindings)
+    clock = pg.time.Clock()
 
-    arrows_bindings = {
-        "north": pg.K_UP,
-        "south": pg.K_DOWN,
-        "east": pg.K_RIGHT,
-        "west": pg.K_LEFT
-    }
-
-    arrows = Paddle()
-    arrows.bind(keydispatcher, arrows_bindings)
-
-    zoom_bindings = {
-        "increment": pg.K_RIGHTBRACKET,
-        "decrement": pg.K_LEFTBRACKET
-    }
-
-    zoom = Counter(vinit=ZOOM_COUNTER_INIT,
-                   vmin=ZOOM_COUNTER_MIN, vmax=ZOOM_COUNTER_MAX)
-    zoom.bind(keydispatcher, zoom_bindings)
-
-    # Prepare game state
-    gamestate = GameState(scene, camera, paddle, arrows, zoom)
-
-    # Prepare clock
-    clock = pygame.time.Clock()
-
-    # MAIN LOOP
     running = True
     while running:
 
-        for event in pygame.event.get():
+        for e in pg.event.get():
 
-            if event.type == pygame.QUIT:
-                sys.exit()
+            if e.type == pg.QUIT:
+                running = False
 
-            if event.type == pg.KEYDOWN or event.type == pg.KEYUP:
-                keydispatcher.dispatch(event)
+            if e.type == pg.KEYUP or e.type == pg.KEYDOWN:
+                keydispatcher.dispatch(e)
 
-        gamestate.update(DT)
+        gamestate.tick(DT)
 
-        camera.draw()
-        pygame.display.flip()
+        rendermanager.update()
+        pg.display.flip()
 
-        clock.tick(TICKRATE)
+        clock.tick(TPS)
 
 
 if __name__ == "__main__":
