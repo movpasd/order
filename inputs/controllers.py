@@ -13,7 +13,7 @@ class Paddle:
 
     def __init__(self, normalise=True):
 
-        self.normalse = normalise
+        self.normalise = normalise
         self._norm = 1 / np.sqrt(2) if normalise else 1.0
 
         self.north = False
@@ -93,6 +93,44 @@ class Paddle:
 
 
 @controller
+class Slider:
+
+    decrease = ControllerButton("decrease")
+    increase = ControllerButton("increase")
+
+    def __init__(self):
+
+        self.decrease = False
+        self.increase = False
+
+    @decrease.set_keypress()
+    def _(self):
+        self.decrease = True
+
+    @decrease.set_keyrelease()
+    def _(self):
+        self.decrease = False
+
+    @increase.set_keypress()
+    def _(self):
+        self.increase = True
+
+    @increase.set_keyrelease()
+    def _(self):
+        self.increase = False
+
+    @property
+    def value(self):
+
+        if self.decrease and not self.increase:
+            return -1
+        if self.increase and not self.decrease:
+            return 1
+
+        return 0
+
+
+@controller
 class Counter:
 
     increment = ControllerButton("increment")
@@ -107,7 +145,7 @@ class Counter:
     @property
     def count(self):
         return self._count
-    
+
     @increment.set_keypress()
     def _(self):
 
@@ -116,12 +154,12 @@ class Counter:
                 return
 
         self._count += 1
-    
+
     @decrement.set_keypress()
     def _(self):
 
         if self.vmin is not None:
             if self.count <= self.vmin:
                 return
-                
+
         self._count -= 1
