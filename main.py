@@ -8,6 +8,7 @@ from render.scenes import Scene, Camera, Sprite, SpriteCircle
 import inputs.keyboard
 import inputs.controllers
 import utils.floatshapes as fs
+import entity, entity.mobs
 
 
 os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -28,16 +29,6 @@ BINDS_PADDLE = {
     "south": pg.K_s,
 }
 
-BINDS_ZOOM = {
-    "increment": pg.K_p,
-    "decrement": pg.K_o,
-}
-
-BINDS_ROTATE = {
-    "increase": pg.K_PERIOD,
-    "decrease": pg.K_COMMA,
-}
-
 
 PATH_ASSETS = Path(__file__).parents[0] / "assets"
 
@@ -50,42 +41,30 @@ class GameState:
 
     def __init__(self, keydispatcher, rendermanager):
 
+        # Prepare inputs
         self.paddle = inputs.controllers.Paddle()
         self.paddle.bind(keydispatcher, BINDS_PADDLE)
 
-        self.zoomcounter = inputs.controllers.Counter()
-        self.zoomcounter.bind(keydispatcher, BINDS_ZOOM)
-
-        self.angleslider = inputs.controllers.Slider()
-        self.angleslider.bind(keydispatcher, BINDS_ROTATE)
-
+        # Prepare scene
         self.camera = Camera(WINDOWSIZE, scale=SCALE)
-        self.scene = Scene(self.camera, bg=BGC)
+        self.scene = Scene(self.camera, bg=(128, 128, 128))
         rendermanager.renderables.append(self.scene)
 
-        smile = pg.image.load(str(PATH_ASSETS / "smiley.png"))
-        rect = fs.FloatRect.from_center(0.5, 0.5, 1, 1)
-        spr = Sprite(smile, rect)
+        # Prepare mobs
+        surf = pg.image.load(str(PATH_ASSETS / "smiley.png"))
 
-        shrect = rect
-        shrect = shrect.shifted(0, -0.5)
-        shrect = shrect.xyscaled(0.9, 0.2)
+        self.mob1 = entity.mobs.MyMob(surf, 0, 0, 0)
+        self.mob1.add_to_scene(self.scene)
 
-        sh = SpriteCircle((0, 0, 0), shrect, alpha=64, z=-0.1)
+        self.mob2 = entity.mobs.MyMob2(surf, 1, 0, 0)
+        self.mob2.add_to_scene(self.scene)
 
-        self.scene.sprites.append(spr)
-        self.scene.sprites.append(sh)
-
-        self.smile = spr
-        self.sh = sh
 
     def tick(self, dt):
 
-        self.smile.pos += self.paddle.vector * SPEED * dt
-        self.sh.pos = self.smile.pos + np.array((0, -0.5))
-        self.smile.angle += self.angleslider.value * ANGSPEED * dt
-
-        self.camera.scale = SCALE * 2 ** self.zoomcounter.count
+        self.mob1.pos += SPEED * self.paddle.vector * dt
+        self.mob1.tick(dt)
+        self.mob2.tick(dt)
 
 
 def main():
