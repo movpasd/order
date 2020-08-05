@@ -25,6 +25,9 @@ class Scene(render.Renderable):
     def bg(self):
         return self._bg
 
+    def add_sprite(self, s):
+        self.sprites.append(s)
+
     def draw(self, screen):
 
         if screen.get_size() != self._camera.screensize:
@@ -108,7 +111,7 @@ class Camera:
         return (self.pos_length(size[0]), self.pos_length(size[1]))
 
     def pos_rect(self, pgrect):
-        return FloatRect(*self.pos_point(pgrect.bottomleft),
+        return fs.FloatRect(*self.pos_point(pgrect.bottomleft),
                          self.pos_size(pgrect.size))
 
 
@@ -219,7 +222,7 @@ class SpriteCircle(Sprite):
 
     def _update_cached(self, camera, force=False):
 
-        angle, alpha = self.angle, self.alpha
+        angle, alpha, color = self.angle, self.alpha, self.color
 
         if not force and (self._cached_angle == angle and
                           self._cached_scale == camera.scale):
@@ -229,20 +232,53 @@ class SpriteCircle(Sprite):
         pxsize = camera.px_size(self.rect.size)
         sf = pg.Surface(pxsize)
 
-        if self.color == (0, 0, 0):
+        if color == (0, 0, 0):
             sf.fill((255, 255, 255))
             sf.set_colorkey((255, 255, 255))
         else:
             sf.set_colorkey((0, 0, 0))
 
-        pg.draw.ellipse(sf, self.color, pg.Rect((0, 0), pxsize))
+        pg.draw.ellipse(sf, color, pg.Rect((0, 0), pxsize))
+
+        if angle == 0:
+            self._cached_surface = sf
+        else:
+            self._cached_surface = pg.transform.rotate(sf, angle)
+
+        if alpha is not None:
+            self._cached_surface.set_alpha(alpha)
+
+    @classmethod
+    def from_circle(cls, color, circle, alpha=None, z=0.0, angle=0, visible=True):
+
+        diam = circle.diameter
+        rect = fs.FloatRect.from_center(circle.cx, circle.cy, diam, diam)
+        return cls(color, rect, alpha=alpha, z=z, angle=angle, visible=visible)
+
+
+class SpriteRect(Sprite):
+
+    def __init__(self, color, rect, alpha=None, z=0.0, angle=0, visible=True):
+
+        super().__init__(None, rect, alpha=alpha, z=z, angle=angle, visible=visible)
+        self.color = color
+
+    def _update_cached(self, camera, force=False):
+
+        angle, alpha, color = self.angle, self.alpha, self.color
+
+        if not force and (self._cached_angle == angle and
+                          self._cached_scale == camera.scale):
+            return
 
         pxsize = camera.px_size(self.rect.size)
-        self._cached_surface = pg.transform.scale(sf, pxsize)
+        sf = pg.Surface(pxsize)
+        sf.fill(color)
 
-        if angle != 0:
-            self._cached_surface = pg.transform.rotate(
-                self._cached_surface, angle)
+        if angle == 0:
+            self._cached_surface = sf
+        else:
+            self._cached_surface = pg.transform.rotate(sf, angle)
 
         if alpha is not None:
             self._cached_surface.set_alpha(alpha)
