@@ -4,23 +4,28 @@ from pathlib import Path
 import os
 
 import render
-from render.scenes import Scene, Camera, Sprite, SpriteCircle
+from render.scenes import Scene, Camera, Sprite, SpriteCircle, SpriteRect
 import inputs.keyboard
 import inputs.controllers
-import utils.floatshapes as fs
-import entity, entity.mobs
+from utils.floatshapes import FloatRect, FloatCircle
+from utils.collide import collidevector
 
 
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 
 
 WINDOWSIZE = (900, 600)
-BGC = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREY = (128, 128, 128)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
 TPS = 100
 DT = 1 / TPS
 
-SCALE = 128.0
+SCALE = 64.0
 
 BINDS_PADDLE = {
     "north": pg.K_w,
@@ -29,12 +34,24 @@ BINDS_PADDLE = {
     "south": pg.K_s,
 }
 
+BINDS_CAMERAPAD = {
+    "north": pg.K_UP,
+    "west": pg.K_LEFT,
+    "east": pg.K_RIGHT,
+    "south": pg.K_DOWN,
+}
+
+BINDS_CAMZOOM = {
+    "decrement": pg.K_o,
+    "increment": pg.K_p,
+}
+
 
 PATH_ASSETS = Path(__file__).parents[0] / "assets"
 
 
-SPEED = 5.
-ANGSPEED = 90
+CAMSPEED = 10.
+PSPEED = 5.
 
 
 class GameState:
@@ -42,29 +59,62 @@ class GameState:
     def __init__(self, keydispatcher, rendermanager):
 
         # Prepare inputs
+
         self.paddle = inputs.controllers.Paddle()
         self.paddle.bind(keydispatcher, BINDS_PADDLE)
 
+        self.campad = inputs.controllers.Paddle()
+        self.campad.bind(keydispatcher, BINDS_CAMERAPAD)
+
+        self.camzoom = inputs.controllers.Counter()
+        self.camzoom.bind(keydispatcher, BINDS_CAMZOOM)
+
         # Prepare scene
-        self.camera = Camera(WINDOWSIZE, scale=SCALE)
-        self.scene = Scene(self.camera, bg=(128, 128, 128))
+
+        self.camera = Camera(WINDOWSIZE)
+        self.scene = Scene(self.camera, bg=WHITE)
         rendermanager.renderables.append(self.scene)
 
-        # Prepare mobs
-        surf = pg.image.load(str(PATH_ASSETS / "smiley.png"))
+        # Prepare game objects
 
-        self.mob1 = entity.mobs.MyMob(surf, 0, 0, 0)
-        self.mob1.add_to_scene(self.scene)
+        self.wallrect = FloatRect(2, -2, 3, 6)
+        self.circle = FloatCircle(-2, 0, 1)
+        self.playercircle = FloatCircle(0, 0, 1)
 
-        self.mob2 = entity.mobs.MyMob2(surf, 1, 0, 0)
-        self.mob2.add_to_scene(self.scene)
+        # self.playersprite = SpriteCircle.from_circle(BLUE, self.playercircle)
+        self.wallsprite = SpriteRect(BLACK, self.wallrect)
+        self.circlesprite = SpriteCircle.from_circle(BLUE, self.circle)
+        sf = pg.image.load(str(PATH_ASSETS / "smiley.png"))
+        sf.convert()
+        self.playersprite = Sprite(sf, self.playercircle.get_rect())
 
+        self.scene.add_sprite(self.playersprite)
+        self.scene.add_sprite(self.wallsprite)
+        self.scene.add_sprite(self.circlesprite)
+
+    def tick_cam(self, dt):
+
+        self.camera.center += CAMSPEED * dt * self.campad.vector
+        self.camera.scale = SCALE * 2 ** self.camzoom.count
+
+    def tick_player(self, dt):
+
+        vec = self.paddle.vector * PSPEED * dt
+        self.playercircle = self.playercircle.shifted(*vec)
+
+        cv1 = collidevector(self.playercircle, self.circle)
+        self.circle = self.circle.shifted(*- cv1 / 2)
+
+        cv2 = collidevector(self.playercircle, self.wallrect)
+        self.playercircle = self.playercircle.shifted(*(cv1 / 2 + cv2))
+
+        self.playersprite.rect = self.playercircle.get_rect()
+        self.circlesprite.rect = self.circle.get_rect()
 
     def tick(self, dt):
 
-        self.mob1.pos += SPEED * self.paddle.vector * dt
-        self.mob1.tick(dt)
-        self.mob2.tick(dt)
+        self.tick_cam(dt)
+        self.tick_player(dt)
 
 
 def main():

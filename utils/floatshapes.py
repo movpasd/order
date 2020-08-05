@@ -144,7 +144,8 @@ class FloatRect:
 
     def resized(self, newwidth, newheight, scalefrom="center"):
 
-        nw, nh = newwidth, newheight
+        nw = newwidth or self.width
+        nh = newheight or self.height
 
         if scalefrom == "center":
             return FloatRect.from_center(self.cx, self.cy, nw, nh)
@@ -297,6 +298,10 @@ class FloatCircle:
     def diameter(self):
         return 2 * self._radius
 
+    def shifted(self, dx, dy):
+        return FloatCircle(self.cx + dx, self.cy + dy,
+                           self.radius)
+
     def get_rect(self):
         w = self.diameter
-        return FloatRect.from_center(self._cx, self._cy, w, w)
+        return FloatRect.from_center(self.cx, self.cy, w, w)
